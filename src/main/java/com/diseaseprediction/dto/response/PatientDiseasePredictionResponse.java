@@ -14,7 +14,6 @@ public class PatientDiseasePredictionResponse {
     private List<String> selectedSymptoms;
     private String message;
     private LocalDateTime createdAt;
-    private PredictionExplanationResponse explanation;
 
     public PatientDiseasePredictionResponse() {
     }
@@ -31,14 +30,6 @@ public class PatientDiseasePredictionResponse {
         this.selectedSymptoms = selectedSymptoms;
         this.message = message;
         this.createdAt = createdAt;
-    }
-
-    public PatientDiseasePredictionResponse(Long id, Long patientId, String patientName, String predictionType,
-                                          String prediction, Double probability, List<String> selectedSymptoms,
-                                          String message, LocalDateTime createdAt,
-                                          PredictionExplanationResponse explanation) {
-        this(id, patientId, patientName, predictionType, prediction, probability, selectedSymptoms, message, createdAt);
-        this.explanation = explanation;
     }
 
     public Long getId() {
@@ -111,13 +102,5 @@ public class PatientDiseasePredictionResponse {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
-    }
-
-    public PredictionExplanationResponse getExplanation() {
-        return explanation;
-    }
-
-    public void setExplanation(PredictionExplanationResponse explanation) {
-        this.explanation = explanation;
     }
 }

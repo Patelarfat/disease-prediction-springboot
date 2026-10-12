@@ -5,7 +5,6 @@ import com.diseaseprediction.dto.request.HeartDiseasePredictionRequest;
 import com.diseaseprediction.dto.response.DiseasePredictionResponse;
 import com.diseaseprediction.dto.response.HeartDiseasePredictionResponse;
 import com.diseaseprediction.dto.response.SymptomsResponse;
-import com.diseaseprediction.dto.response.ModelFeatureImportanceDto;
 import com.diseaseprediction.exception.MlServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,19 +125,5 @@ public class MlService {
             log.error("Unexpected error during heart disease prediction: {}", ex.getMessage());
             throw new MlServiceException("Heart disease prediction failed: " + ex.getMessage(), ex);
         }
-    }
-
-    /**
-     * Retrieve model-level feature importances from the trained Random Forest model.
-     * Derived authentically from disease_model.pkl (Random Forest Gini importance).
-     */
-    public List<ModelFeatureImportanceDto> getModelImportantSymptoms() {
-        return List.of(
-                new ModelFeatureImportanceDto("muscle_pain", 0.0195),
-                new ModelFeatureImportanceDto("itching", 0.0169),
-                new ModelFeatureImportanceDto("dark_urine", 0.0159),
-                new ModelFeatureImportanceDto("high_fever", 0.0156),
-                new ModelFeatureImportanceDto("altered_sensorium", 0.0149)
-        );
     }
 }

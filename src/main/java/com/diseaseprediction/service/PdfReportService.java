@@ -1,10 +1,5 @@
 package com.diseaseprediction.service;
 
-import com.diseaseprediction.dto.request.DiseasePredictionRequest;
-import com.diseaseprediction.dto.response.DiseasePredictionResponse;
-import com.diseaseprediction.dto.response.ModelFeatureImportanceDto;
-import com.diseaseprediction.dto.response.PredictionExplanationResponse;
-import com.diseaseprediction.dto.response.ShapContributionDto;
 import com.diseaseprediction.exception.MlServiceException;
 import com.diseaseprediction.model.Patient;
 import com.diseaseprediction.model.PredictionHistory;
@@ -30,7 +25,6 @@ public class PdfReportService {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
 
     private final ObjectMapper objectMapper;
-    private final MlService mlService;
 
     // Theme Colors
     private static final Color PRIMARY_COLOR = new Color(2, 132, 199);      // #0284c7 (Medical Blue)
@@ -40,20 +34,9 @@ public class PdfReportService {
     private static final Color TEXT_MUTED = new Color(100, 116, 139);      // #64748b
     private static final Color TEXT_DARK = new Color(30, 41, 59);          // #1e293b
     private static final Color ALERT_BG = new Color(254, 242, 242);        // #fef2f2 (for high risk)
-    private static final Color SUCCESS_TEXT = new Color(22, 101, 52);      // #166534 green
-    private static final Color SUCCESS_BG = new Color(240, 253, 244);      // #f0fdf4
-    private static final Color WARNING_TEXT = new Color(154, 52, 18);      // #9a3412 orange/red
-    private static final Color WARNING_BG = new Color(255, 247, 237);      // #fff7ed
 
     public PdfReportService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        this.mlService = null;
-    }
-
-    @org.springframework.beans.factory.annotation.Autowired
-    public PdfReportService(ObjectMapper objectMapper, @org.springframework.context.annotation.Lazy MlService mlService) {
-        this.objectMapper = objectMapper;
-        this.mlService = mlService;
     }
 
     /**
@@ -87,12 +70,6 @@ public class PdfReportService {
             addInputInformation(document, prediction);
 
             document.add(new Paragraph(" "));
-
-            // 4b. Explainability (Model Explanation for General Disease Prediction)
-            if (!"HEART_DISEASE".equalsIgnoreCase(prediction.getPredictionType())) {
-                addModelExplanation(document, prediction);
-                document.add(new Paragraph(" "));
-            }
 
             // 5. Medical Disclaimer
             addDisclaimer(document);
@@ -285,175 +262,6 @@ public class PdfReportService {
         table.addCell(empty);
 
         document.add(table);
-    }
-
-    private void addModelExplanation(Document document, PredictionHistory prediction) throws DocumentException {
-        addSectionHeader(document, "Why This Prediction? (Patient-Specific SHAP Explanation)");
-
-        PdfPTable containerTable = new PdfPTable(1);
-        containerTable.setWidthPercentage(100);
-
-        PdfPCell containerCell = new PdfPCell();
-        containerCell.setBackgroundColor(BG_LIGHT);
-        containerCell.setBorderColor(BORDER_COLOR);
-        containerCell.setPadding(10);
-
-        Font headingFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9.5f, DARK_NAVY);
-        Paragraph heading = new Paragraph("Method: SHAP TreeExplainer (Local Feature Attribution)", headingFont);
-        heading.setSpacingAfter(4);
-
-        Font textFont = FontFactory.getFont(FontFactory.HELVETICA, 8.5f, TEXT_DARK);
-        String conditionName = prediction.getPredictedDisease() != null ? prediction.getPredictedDisease() : "Predicted Condition";
-        Paragraph summaryPara = new Paragraph(
-                "SHAP analyzes the individual contribution of each symptom towards or away from the predicted diagnosis (" +
-                        conditionName + ") based on the Random Forest model's decision trees.",
-                textFont
-        );
-        summaryPara.setSpacingAfter(8);
-
-        containerCell.addElement(heading);
-        containerCell.addElement(summaryPara);
-
-        // Fetch patient-specific SHAP explanation if mlService is available
-        PredictionExplanationResponse explanation = null;
-        if (mlService != null && prediction.getInputData() != null && !prediction.getInputData().trim().isEmpty()) {
-            try {
-                List<String> symptoms = objectMapper.readValue(prediction.getInputData(), new TypeReference<List<String>>() {});
-                if (symptoms != null && !symptoms.isEmpty()) {
-                    DiseasePredictionResponse mlResponse = mlService.predictGeneralDisease(new DiseasePredictionRequest(symptoms));
-                    if (mlResponse != null) {
-                        explanation = mlResponse.getExplanation();
-                    }
-                }
-            } catch (Exception e) {
-                log.debug("Could not compute SHAP explanation for PDF report: {}", e.getMessage());
-            }
-        }
-
-        List<ShapContributionDto> posList = (explanation != null && explanation.getPositiveContributors() != null)
-                ? explanation.getPositiveContributors()
-                : List.of();
-        List<ShapContributionDto> negList = (explanation != null && explanation.getNegativeContributors() != null)
-                ? explanation.getNegativeContributors()
-                : List.of();
-
-        // 1. Positive Contributors (Supporting diagnosis)
-        Font subHeadingGreen = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9f, SUCCESS_TEXT);
-        Paragraph posHeader = new Paragraph("Symptoms Supporting Prediction (Pushed Toward Diagnosis):", subHeadingGreen);
-        posHeader.setSpacingAfter(4);
-        containerCell.addElement(posHeader);
-
-        if (!posList.isEmpty()) {
-            PdfPTable posTable = new PdfPTable(3);
-            posTable.setWidthPercentage(100);
-            try {
-                posTable.setWidths(new float[]{45, 30, 25});
-            } catch (DocumentException ignored) {}
-
-            for (ShapContributionDto dto : posList) {
-                String symName = dto.getSymptom() != null ? dto.getSymptom().replace("_", " ").trim() : "Unknown";
-                symName = Character.toUpperCase(symName.charAt(0)) + symName.substring(1);
-                boolean isSelected = Boolean.TRUE.equals(dto.getSelected());
-                String statusStr = isSelected ? "[Selected by Patient]" : "[Absent / Not Selected]";
-                String valStr = String.format("+%.4f", dto.getShapValue() != null ? dto.getShapValue() : 0.0);
-
-                PdfPCell c1 = new PdfPCell(new Paragraph("• " + symName, textFont));
-                c1.setBorder(Rectangle.NO_BORDER);
-                c1.setBackgroundColor(SUCCESS_BG);
-                c1.setPadding(3);
-
-                Font statusFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8f, isSelected ? SUCCESS_TEXT : TEXT_MUTED);
-                PdfPCell c2 = new PdfPCell(new Paragraph(statusStr, statusFont));
-                c2.setBorder(Rectangle.NO_BORDER);
-                c2.setBackgroundColor(SUCCESS_BG);
-                c2.setPadding(3);
-
-                Font valFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8.5f, SUCCESS_TEXT);
-                PdfPCell c3 = new PdfPCell(new Paragraph("SHAP: " + valStr, valFont));
-                c3.setBorder(Rectangle.NO_BORDER);
-                c3.setBackgroundColor(SUCCESS_BG);
-                c3.setPadding(3);
-
-                posTable.addCell(c1);
-                posTable.addCell(c2);
-                posTable.addCell(c3);
-            }
-            containerCell.addElement(posTable);
-        } else {
-            Font italicMuted = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8f, TEXT_MUTED);
-            containerCell.addElement(new Paragraph("No significant positive contributors identified.", italicMuted));
-        }
-
-        // Spacing
-        Paragraph spacePara = new Paragraph(" ");
-        spacePara.setSpacingAfter(4);
-        containerCell.addElement(spacePara);
-
-        // 2. Negative Contributors (Pushing against diagnosis)
-        Font subHeadingWarning = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9f, WARNING_TEXT);
-        Paragraph negHeader = new Paragraph("Symptoms Pushing Against Prediction (Reduced Confidence):", subHeadingWarning);
-        negHeader.setSpacingAfter(4);
-        containerCell.addElement(negHeader);
-
-        if (!negList.isEmpty()) {
-            PdfPTable negTable = new PdfPTable(3);
-            negTable.setWidthPercentage(100);
-            try {
-                negTable.setWidths(new float[]{45, 30, 25});
-            } catch (DocumentException ignored) {}
-
-            for (ShapContributionDto dto : negList) {
-                String symName = dto.getSymptom() != null ? dto.getSymptom().replace("_", " ").trim() : "Unknown";
-                symName = Character.toUpperCase(symName.charAt(0)) + symName.substring(1);
-                boolean isSelected = Boolean.TRUE.equals(dto.getSelected());
-                String statusStr = isSelected ? "[Selected by Patient]" : "[Absent / Not Selected]";
-                String valStr = String.format("%.4f", dto.getShapValue() != null ? dto.getShapValue() : 0.0);
-
-                PdfPCell c1 = new PdfPCell(new Paragraph("• " + symName, textFont));
-                c1.setBorder(Rectangle.NO_BORDER);
-                c1.setBackgroundColor(WARNING_BG);
-                c1.setPadding(3);
-
-                Font statusFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8f, isSelected ? WARNING_TEXT : TEXT_MUTED);
-                PdfPCell c2 = new PdfPCell(new Paragraph(statusStr, statusFont));
-                c2.setBorder(Rectangle.NO_BORDER);
-                c2.setBackgroundColor(WARNING_BG);
-                c2.setPadding(3);
-
-                Font valFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8.5f, WARNING_TEXT);
-                PdfPCell c3 = new PdfPCell(new Paragraph("SHAP: " + valStr, valFont));
-                c3.setBorder(Rectangle.NO_BORDER);
-                c3.setBackgroundColor(WARNING_BG);
-                c3.setPadding(3);
-
-                negTable.addCell(c1);
-                negTable.addCell(c2);
-                negTable.addCell(c3);
-            }
-            containerCell.addElement(negTable);
-        } else {
-            Font italicMuted = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8f, TEXT_MUTED);
-            containerCell.addElement(new Paragraph("No significant negative contributors identified.", italicMuted));
-        }
-
-        // Interpretation Note & Disclaimer
-        Font noteFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8f, TEXT_MUTED);
-        Paragraph notePara = new Paragraph(
-                "Interpretation: Positive values (+) indicate symptoms that increased the model's confidence in this diagnosis. " +
-                        "Negative values (-) indicate symptoms that decreased confidence (e.g. absence of expected symptoms).",
-                noteFont
-        );
-        notePara.setSpacingBefore(6);
-        containerCell.addElement(notePara);
-
-        Paragraph disclPara = new Paragraph(
-                "Disclaimer: SHAP values explain the model's decision process for this individual case. They do not establish clinical causation.",
-                noteFont
-        );
-        containerCell.addElement(disclPara);
-
-        containerTable.addCell(containerCell);
-        document.add(containerTable);
     }
 
     private void addDisclaimer(Document document) throws DocumentException {

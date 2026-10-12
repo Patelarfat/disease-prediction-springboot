@@ -1,8 +1,5 @@
 package com.diseaseprediction.service;
 
-import com.diseaseprediction.dto.response.DiseasePredictionResponse;
-import com.diseaseprediction.dto.response.PredictionExplanationResponse;
-import com.diseaseprediction.dto.response.ShapContributionDto;
 import com.diseaseprediction.model.Patient;
 import com.diseaseprediction.model.PredictionHistory;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -69,48 +66,6 @@ class PdfReportServiceTest {
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 500);
 
-        String magicNumber = new String(pdfBytes, 0, 5);
-        assertEquals("%PDF-", magicNumber);
-    }
-
-    @Test
-    @DisplayName("Should generate valid PDF report with SHAP explanation when MlService is provided")
-    void testGenerateGeneralDiseasePdfReportWithShap() {
-        PredictionExplanationResponse explanation = new PredictionExplanationResponse(
-                "SHAP TreeExplainer",
-                "Patient-specific SHAP explanation",
-                "Disclaimer text",
-                java.util.List.of("itching", "skin_rash"),
-                java.util.List.of(new ShapContributionDto("itching", 0.08, "supports_prediction", true)),
-                java.util.List.of(new ShapContributionDto("dischromic _patches", -0.0367, "against_prediction", false)),
-                java.util.List.of()
-        );
-        DiseasePredictionResponse mlResponse = new DiseasePredictionResponse(
-                "Fungal infection", 57.0, java.util.List.of("itching", "skin_rash"), "Success", explanation);
-
-        MlService stubMlService = new MlService(new org.springframework.web.client.RestTemplate(), "http://localhost:8000") {
-            @Override
-            public DiseasePredictionResponse predictGeneralDisease(com.diseaseprediction.dto.request.DiseasePredictionRequest req) {
-                return mlResponse;
-            }
-        };
-
-        PdfReportService serviceWithMl = new PdfReportService(objectMapper, stubMlService);
-
-        Patient patient = new Patient("Arfat", 20, "Male", "example@email.com");
-        patient.setId(1L);
-        patient.setCreatedAt(LocalDateTime.now());
-
-        String symptomsJson = "[\"itching\",\"skin_rash\"]";
-        PredictionHistory prediction = new PredictionHistory(
-                patient, "GENERAL_DISEASE", symptomsJson, "Fungal infection", 57.0);
-        prediction.setId(5L);
-        prediction.setCreatedAt(LocalDateTime.now());
-
-        byte[] pdfBytes = serviceWithMl.generateMedicalReport(patient, prediction);
-
-        assertNotNull(pdfBytes);
-        assertTrue(pdfBytes.length > 500);
         String magicNumber = new String(pdfBytes, 0, 5);
         assertEquals("%PDF-", magicNumber);
     }

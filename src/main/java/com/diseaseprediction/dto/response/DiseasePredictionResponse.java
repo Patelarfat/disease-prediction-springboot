@@ -13,7 +13,6 @@ public class DiseasePredictionResponse {
 
     private String message;
     private String error;
-    private PredictionExplanationResponse explanation;
 
     public DiseasePredictionResponse() {
     }
@@ -23,12 +22,6 @@ public class DiseasePredictionResponse {
         this.probability = probability;
         this.selectedSymptoms = selectedSymptoms;
         this.message = message;
-    }
-
-    public DiseasePredictionResponse(String prediction, Double probability, List<String> selectedSymptoms, String message,
-                                     PredictionExplanationResponse explanation) {
-        this(prediction, probability, selectedSymptoms, message);
-        this.explanation = explanation;
     }
 
     public String getPrediction() {
@@ -69,13 +62,5 @@ public class DiseasePredictionResponse {
 
     public void setError(String error) {
         this.error = error;
-    }
-
-    public PredictionExplanationResponse getExplanation() {
-        return explanation;
-    }
-
-    public void setExplanation(PredictionExplanationResponse explanation) {
-        this.explanation = explanation;
     }
 }

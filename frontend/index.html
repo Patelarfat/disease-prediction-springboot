@@ -317,66 +317,6 @@
             <span>Persistence: <strong>Saved in MySQL</strong></span>
           </div>
 
-          <!-- Explainability Section (Collapsible SHAP Explanation) -->
-          <div class="explanation-wrapper">
-            <button type="button" id="explanation-toggle-btn" class="explanation-accordion-btn" aria-expanded="false">
-              <span id="explanation-toggle-icon" class="accordion-arrow">▼</span>
-              <span class="accordion-title">Why This Prediction? (SHAP Explanation)</span>
-            </button>
-            <div id="explanation-content" class="explanation-body" style="display: none;">
-              <div class="explanation-card">
-                <div class="explanation-header">
-                  <span class="explanation-icon">🧠</span>
-                  <strong>Patient-Specific SHAP Explanation</strong>
-                  <span class="badge badge-primary" style="font-size: 0.72rem; margin-left: auto;">SHAP TreeExplainer</span>
-                </div>
-                <p id="explanation-summary" class="explanation-text">
-                  SHAP values explain how individual symptoms influenced this specific diagnosis.
-                </p>
-
-                <!-- Selected Symptoms Evaluated -->
-                <div class="explanation-block">
-                  <span class="explanation-label">Selected Symptoms Evaluated:</span>
-                  <div id="explanation-selected-chips" class="explanation-chips"></div>
-                </div>
-
-                <!-- Positive Contributors (Supporting Diagnosis) -->
-                <div id="explanation-positive-block" class="explanation-block">
-                  <div class="shap-section-title text-success">
-                    <span class="shap-indicator-icon">▲</span>
-                    <strong>Symptoms Supporting This Prediction</strong>
-                    <span class="shap-subtitle">(Increased model confidence)</span>
-                  </div>
-                  <div id="explanation-positive-container" class="shap-list"></div>
-                </div>
-
-                <!-- Negative Contributors (Pushing Against Diagnosis) -->
-                <div id="explanation-negative-block" class="explanation-block">
-                  <div class="shap-section-title text-warning">
-                    <span class="shap-indicator-icon">▼</span>
-                    <strong>Symptoms Pushing Against This Prediction</strong>
-                    <span class="shap-subtitle">(Decreased model confidence)</span>
-                  </div>
-                  <div id="explanation-negative-container" class="shap-list"></div>
-                </div>
-
-                <!-- Interpretation Guide -->
-                <div class="shap-interpretation-guide">
-                  <span class="guide-icon">💡</span>
-                  <div>
-                    <strong>How to interpret SHAP values:</strong>
-                    <span><strong>Positive (+)</strong> values mean the symptom pushed the model towards this diagnosis. <strong>Negative (-)</strong> values mean the symptom (or its absence) reduced the model's confidence in this diagnosis.</span>
-                  </div>
-                </div>
-
-                <!-- Medical Disclaimer -->
-                <div class="explanation-disclaimer">
-                  <strong>Medical Disclaimer:</strong> SHAP values explain the model's feature contributions for this specific prediction. They do not establish medical causation. This prediction is for educational and decision-support purposes only. Consult a healthcare professional.
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div style="margin-top: 18px;">
             <button type="button" id="general-download-pdf-btn" class="btn btn-secondary">
               📄 Download PDF Report

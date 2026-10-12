@@ -6,7 +6,6 @@ import com.diseaseprediction.dto.response.DiseasePredictionResponse;
 import com.diseaseprediction.dto.response.HeartDiseasePredictionResponse;
 import com.diseaseprediction.dto.response.PatientDiseasePredictionResponse;
 import com.diseaseprediction.dto.response.PatientHeartDiseasePredictionResponse;
-import com.diseaseprediction.dto.response.PredictionExplanationResponse;
 import com.diseaseprediction.dto.response.PredictionHistoryResponse;
 import com.diseaseprediction.model.Patient;
 import com.diseaseprediction.model.PredictionHistory;
@@ -77,16 +76,6 @@ public class PredictionService {
         PredictionHistory saved = predictionHistoryRepository.save(history);
         log.info("Saved general disease prediction record with ID {} for patient ID {}", saved.getId(), patientId);
 
-        PredictionExplanationResponse explanation = mlResponse.getExplanation();
-        if (explanation == null) {
-            explanation = new PredictionExplanationResponse(
-                    "The selected symptoms were evaluated against patterns learned by the Random Forest model.",
-                    "Model-level importance is not a measure of individual causation.",
-                    request.getSymptoms(),
-                    mlService.getModelImportantSymptoms()
-            );
-        }
-
         return new PatientDiseasePredictionResponse(
                 saved.getId(),
                 patient.getId(),
@@ -96,8 +85,7 @@ public class PredictionService {
                 mlResponse.getProbability(),
                 mlResponse.getSelectedSymptoms() != null ? mlResponse.getSelectedSymptoms() : request.getSymptoms(),
                 mlResponse.getMessage(),
-                saved.getCreatedAt(),
-                explanation
+                saved.getCreatedAt()
         );
     }
 

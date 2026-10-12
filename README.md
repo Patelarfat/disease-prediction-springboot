@@ -1,6 +1,6 @@
 # MediPredict — Disease Prediction System
 
-MediPredict is an end-to-end clinical decision support platform combining an enterprise Java Spring Boot backend, a Python FastAPI machine learning microservice, and a responsive web dashboard. The platform allows clinicians and healthcare operators to register patients, predict potential medical conditions from a catalog of 132 symptoms using a Random Forest classifier, evaluate cardiovascular risk from 13 diagnostic metrics, inspect patient-specific SHAP explanations, and generate downloadable PDF clinical reports.
+MediPredict is an end-to-end clinical decision support platform combining an enterprise Java Spring Boot backend, a Python FastAPI machine learning microservice, and a responsive web dashboard. The platform allows clinicians and healthcare operators to register patients, predict potential medical conditions from a catalog of 132 symptoms using a Random Forest classifier, evaluate cardiovascular risk from 13 diagnostic metrics, and generate downloadable PDF clinical reports.
 
 ---
 
@@ -15,7 +15,7 @@ MediPredict is an end-to-end clinical decision support platform combining an ent
 - [Installation and Setup](#installation-and-setup)
 - [Running the Project](#running-the-project)
 - [REST API Documentation](#rest-api-documentation)
-- [Machine Learning and SHAP Explainability](#machine-learning-and-shap-explainability)
+- [Machine Learning Models](#machine-learning-models)
 - [PDF Medical Reports](#pdf-medical-reports)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -32,8 +32,7 @@ MediPredict is an end-to-end clinical decision support platform combining an ent
 - **Symptom Discovery & Filtering**: Search symptoms in real-time with instant text filtering and categorized pill filters (Respiratory, Digestive, Neurological, Skin, etc.).
 - **Heart Disease Prediction**: Evaluate cardiovascular risk probability using 13 clinical biomarkers and diagnostic metrics (chest pain type, resting blood pressure, cholesterol, max heart rate, ST depression, fluoroscopy vessels, etc.).
 - **Patient-Specific Prediction Routing**: Predictions are tied to a specific target patient ID and automatically stored in the patient's longitudinal prediction history.
-- **Explainable AI (SHAP TreeExplainer)**: Generates patient-specific SHAP feature contributions showing which symptoms positively contributed to the diagnosis and which features pushed against it.
-- **PDF Clinical Report Generation**: Dynamically creates publication-grade medical report PDFs using OpenPDF, including hospital header, patient demographics, prediction probability bar, evaluated symptoms, and SHAP contributions.
+- **PDF Clinical Report Generation**: Dynamically creates publication-grade medical report PDFs using OpenPDF, including hospital header, patient demographics, prediction probability bar, and evaluated symptoms.
 - **Dual-Service Architecture**: Decoupled design where Spring Boot orchestrates persistence and business logic while calling a dedicated Python FastAPI service for machine learning inference.
 
 ---
@@ -54,8 +53,7 @@ flowchart TD
     
     subgraph PythonML["Python FastAPI Service (Port 8000)"]
         FastAPI["FastAPI Endpoints\n(/predict, /predict-heart-disease, /symptoms)"]
-        RFModel["Random Forest Models\n(disease_model.pkl, heart_model.pkl)"]
-        SHAP["SHAP TreeExplainer\n(Patient-Specific Feature Contributions)"]
+        RFModel["Random Forest Models\n(disease_model.pkl, heart_disease_model.pkl)"]
     end
 
     Client -->|HTTP / JSON Requests| Controllers
@@ -64,8 +62,7 @@ flowchart TD
     Repositories --> Database
     Services -->|HTTP / RestTemplate| FastAPI
     FastAPI --> RFModel
-    RFModel --> SHAP
-    SHAP -->|Prediction + SHAP JSON| Services
+    RFModel -->|Prediction JSON| Services
     Services -->|JSON Response or PDF Stream| Client
 ```
 
@@ -83,7 +80,6 @@ flowchart TD
 | **Build Tool** | Apache Maven 3.8+ | Dependency management and build lifecycle |
 | **ML Framework** | Python 3.10+, FastAPI, Uvicorn | High-performance asynchronous REST microservice |
 | **Machine Learning** | Scikit-learn, Joblib | Random Forest classifiers for disease and heart risk |
-| **Explainable AI** | SHAP 0.49.1 | TreeExplainer for multi-class and binary models |
 | **Data Processing** | Pandas, NumPy | Feature matrix alignment and data preparation |
 | **Frontend UI** | HTML5, CSS3, Vanilla ES6 JavaScript | Zero-framework responsive dashboard with Fetch API |
 
@@ -113,7 +109,7 @@ disease-prediction-springboot/
 │   │   │   │   └── PredictionHistoryController.java # Global prediction history
 │   │   │   ├── dto/
 │   │   │   │   ├── request/                    # DiseasePredictionRequest, PatientRequest, etc.
-│   │   │   │   └── response/                   # DTOs for responses, SHAP, and errors
+│   │   │   │   └── response/                   # DTOs for responses and errors
 │   │   │   ├── exception/
 │   │   │   │   ├── GlobalExceptionHandler.java # Unified HTTP error responses
 │   │   │   │   ├── MlServiceException.java
@@ -283,7 +279,7 @@ All Spring Boot endpoints are mapped under `/api`:
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/patients/{patientId}/predict` | Runs general disease inference for selected symptoms, saves result to history, and returns diagnosis with SHAP contributions. |
+| `POST` | `/api/patients/{patientId}/predict` | Runs general disease inference for selected symptoms, saves result to history, and returns diagnosis. |
 | `POST` | `/api/patients/{patientId}/predict-heart-disease` | Runs heart disease risk inference for 13 diagnostic metrics and saves result to history. |
 | `GET` | `/api/patients/{patientId}/predictions` | Retrieves all prediction history records for a patient (newest first). |
 | `GET` | `/api/patients/{patientId}/predictions/{predictionId}/report` | Generates and streams a downloadable PDF medical report (`application/pdf`). |
@@ -299,18 +295,13 @@ All Spring Boot endpoints are mapped under `/api`:
 
 ---
 
-## Machine Learning and SHAP Explainability
+## Machine Learning Models
 
 ### Model Architecture
-- **General Disease Classifier**: A Random Forest classifier trained on 132 binary symptom indicators across 41 disease classes.
-- **Cardiovascular Risk Classifier**: A Random Forest classifier evaluating 13 numerical and categorical parameters (e.g., `cp`, `trestbps`, `chol`, `thalach`, `oldpeak`, `ca`).
+- **General Disease Classifier**: A Random Forest classifier trained on 132 binary symptom indicators across 41 disease classes (`disease_model.pkl`).
+- **Cardiovascular Risk Classifier**: A Random Forest classifier evaluating 13 numerical and clinical biomarkers (`heart_disease_model.pkl`).
 
-### Patient-Specific SHAP Explanations
-Explainability is powered by SHAP (`TreeExplainer`). Rather than showing global feature importances, the system computes the exact Shapley values for the specific patient's input vector against the predicted disease class:
-- **Positive Contributors**: Symptoms present that pushed the model's confidence toward the predicted disease.
-- **Negative Contributors**: Symptoms whose presence (or absence) reduced the model's confidence for that condition.
-
-> **Important Note on SHAP**: SHAP values reflect internal mathematical feature contributions of the machine learning model. They represent statistical attribution within the model's decision boundaries and **do not** denote biological causation or medical certainty.
+Both models are pre-trained scikit-learn estimators serialized with joblib and served with high-performance asynchronous endpoints via FastAPI.
 
 ---
 
@@ -321,7 +312,6 @@ The platform uses **OpenPDF** (`com.github.librepdf:openpdf:1.3.40`) to generate
 - Complete patient demographic summary.
 - Visual confidence percentage bar with clinical urgency color coding.
 - List of evaluated symptoms or diagnostic markers.
-- Top positive and negative contributing factors from the SHAP analysis.
 - Standard medical disclaimer footer.
 
 Generated PDFs are streamed directly from the Spring Boot backend via `ResponseEntity<byte[]>` with `Content-Disposition: attachment; filename="MedPredict_Report_<patientId>_<predictionId>.pdf"`.
@@ -341,7 +331,7 @@ mvn clean test
 ### Verified Test Results
 ```text
 [INFO] Results:
-[INFO] Tests run: 27, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
@@ -375,7 +365,7 @@ Key test suites:
 - **Solution**: Ensure the FastAPI server is active in Terminal 1. Visit `http://localhost:8000/docs` in your browser to verify it responds.
 
 ### 4. Missing Python Dependencies
-- **Symptom**: `ModuleNotFoundError: No module named 'shap'` or `'fastapi'`.
+- **Symptom**: `ModuleNotFoundError: No module named 'fastapi'` or `'sklearn'`.
 - **Solution**: Re-install dependencies inside the ML directory:
   ```powershell
   pip install -r requirements.txt
@@ -393,7 +383,7 @@ Key test suites:
 
 ## Medical Disclaimer
 
-> **DISCLAIMER**: MediPredict is an educational software engineering and research project. The predictions, probability estimates, and SHAP explanations generated by this system are produced by statistical machine learning models and are intended solely for academic demonstration and clinical decision support research. This software is **not** a certified medical diagnostic device and must **not** be used as a substitute for professional clinical judgment, medical diagnosis, or patient treatment planning.
+> **DISCLAIMER**: MediPredict is an educational software engineering and research project. The predictions and probability estimates generated by this system are produced by statistical machine learning models and are intended solely for academic demonstration and clinical decision support research. This software is **not** a certified medical diagnostic device and must **not** be used as a substitute for professional clinical judgment, medical diagnosis, or patient treatment planning.
 
 ---
 
